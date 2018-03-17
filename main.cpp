@@ -10,10 +10,9 @@
 
 #include "ExtraFuncs.h"
 
-// template this
 std::vector<std::vector<float>> GenerateEmptyArray(int width, int height)
 {
-	std::vector<std::vector<float>> generatedVector;
+	std::vector<std::vector<float>> emptyArray;
 
 	for (int row = 0; row < height; row++)
 	{
@@ -22,41 +21,34 @@ std::vector<std::vector<float>> GenerateEmptyArray(int width, int height)
 		{
 			tempEmpty.push_back(0.f);
 		}
-		generatedVector.push_back(tempEmpty);
+		emptyArray.push_back(tempEmpty);
 	}
-
-	return generatedVector;
+	return emptyArray;
 }
 
 std::vector<std::vector<float>> GenerateWhiteNoise(int width, int height)
 {
-	int completedTiles = 0;
-
 	srand(static_cast<unsigned int>(time(NULL)));
-	std::vector<std::vector<float>> noise = GenerateEmptyArray(width, height);
+	std::vector<std::vector<float>> noise;
 
 	for (int row = 0; row < height; row++)
 	{
+		std::vector<float> tempNoiseEntry;
 		for (int column = 0; column < width; column++)
 		{
-			noise[row][column] = (float)RandomDouble(0.f, 1.f);
-			completedTiles++;
-			double percentComplete = (double)completedTiles / ((double)width*(double)height);
-			std::cout << int(percentComplete * 100) << "%" << std::endl;
+			tempNoiseEntry.push_back((float)RandomDouble(0.f, 1.f));
 		}
+		noise.push_back(tempNoiseEntry);
 	}
-
 	return noise;
 }
 
 std::vector<std::vector<float>> GenerateSmoothNoise(std::vector<std::vector<float>> baseNoise, int octave)
 {
-	int completedTiles = 0;
-
 	int width = baseNoise.size();
 	int height = baseNoise[0].size();
 
-	std::vector<std::vector<float>> smoothNoise = GenerateEmptyArray(width, height);
+	std::vector<std::vector<float>> smoothNoise;
 
 	int samplePeriod = 1 << octave; // calculates 2 ^ k
 	float sampleFrequency = 1.0f / samplePeriod;
@@ -68,6 +60,7 @@ std::vector<std::vector<float>> GenerateSmoothNoise(std::vector<std::vector<floa
 		int sample_i1 = (sample_i0 + samplePeriod) % width; //wrap around
 		float horizontal_blend = (row - sample_i0) * sampleFrequency;
 
+		std::vector<float> tempSmoothNoiseEntry;
 		for (int column = 0; column < width; column++)
 		{
 			//calculate the vertical sampling indices
@@ -82,12 +75,9 @@ std::vector<std::vector<float>> GenerateSmoothNoise(std::vector<std::vector<floa
 			float bottom = Interpolate(baseNoise[sample_i0][sample_j1], baseNoise[sample_i1][sample_j1], horizontal_blend);
 
 			//final blend
-			smoothNoise[row][column] = Interpolate(top, bottom, vertical_blend);
-
-			completedTiles++;
-			double percentComplete = (double)completedTiles / ((double)width*(double)height);
-			std::cout << int(percentComplete * 100) << "%" << std::endl;
+			tempSmoothNoiseEntry.push_back(Interpolate(top, bottom, vertical_blend));
 		}
+		smoothNoise.push_back(tempSmoothNoiseEntry);
 	}
 
 	return smoothNoise;
@@ -95,8 +85,6 @@ std::vector<std::vector<float>> GenerateSmoothNoise(std::vector<std::vector<floa
 
 std::vector<std::vector<float>> GeneratePerlinNoise(std::vector<std::vector<float>> baseNoise, int octaveCount)
 {
-	int completedTiles = 0;
-
 	int width = baseNoise.size();
 	int height = baseNoise[0].size();
 
@@ -108,10 +96,6 @@ std::vector<std::vector<float>> GeneratePerlinNoise(std::vector<std::vector<floa
 	for (int i = 0; i < octaveCount; i++)
 	{
 		smoothNoise[i] = GenerateSmoothNoise(baseNoise, i);
-
-		completedTiles++;
-		double percentComplete = (double)completedTiles / ((double)width*(double)height);
-		std::cout << int(percentComplete * 100) << "%" << std::endl;
 	}
 
 	std::vector<std::vector<float>> perlinNoise = GenerateEmptyArray(width, height);
@@ -119,7 +103,6 @@ std::vector<std::vector<float>> GeneratePerlinNoise(std::vector<std::vector<floa
 	float totalAmplitude = 0.0f;
 
 	//blend noise together
-	completedTiles = 0;
 	for (int octave = octaveCount - 1; octave >= 0; octave--)
 	{
 		amplitude *= persistance;
@@ -130,29 +113,31 @@ std::vector<std::vector<float>> GeneratePerlinNoise(std::vector<std::vector<floa
 			for (int column = 0; column < width; column++)
 			{
 				perlinNoise[row][column] += smoothNoise[octave][row][column] * amplitude;
-
-				completedTiles++;
-				double percentComplete = (double)completedTiles / ((double)width*(double)height) / octaveCount;
-				std::cout << int(percentComplete*100) << "%" << std::endl;
 			}
 		}
 	}
 
 	//normalisation
-	completedTiles = 0;
 	for (int row = 0; row < height; row++)
 	{
 		for (int column = 0; column < width; column++)
 		{
 			perlinNoise[row][column] /= totalAmplitude;
-
-			completedTiles++;
-			double percentComplete = (double)completedTiles / ((double)width*(double)height);
-			std::cout << int(percentComplete * 100) << "%" << std::endl;
 		}
 	}
 
 	return perlinNoise;
+}
+
+std::vector<std::vector<sf::Color>> XORColourBlend(std::vector<std::vector<sf::Color>> baseMap, sf::Color secondMap)
+{
+	for (int row = 0; row < baseMap.size(); row++)
+	{
+		for (int column = 0; column < baseMap[0].size(); column++)
+		{
+			//baseMap[row][column] = sf::Color(baseMap[row][column], baseMap[row][column], baseMap[row][column]) ^ secondMap;
+		}
+	}
 }
 
 void processCommands(std::vector<std::vector<float>>& PerlinNoise, bool& shouldRender, bool& shouldSave)
@@ -172,7 +157,6 @@ void processCommands(std::vector<std::vector<float>>& PerlinNoise, bool& shouldR
 			std::cin >> inBright;
 			float con = std::stof(inCon), bright = std::stof(inBright);
 
-			int completedTiles = 0;
 			for (int row = 0; row < PerlinNoise.size(); row++)
 			{
 				for (int column = 0; column < PerlinNoise[0].size(); column++)
@@ -186,10 +170,6 @@ void processCommands(std::vector<std::vector<float>>& PerlinNoise, bool& shouldR
 					float newValue = TruncateRGB((factor * (x - 128) + 128 + bright));
 
 					PerlinNoise[row][column] = newValue/255;
-
-					completedTiles++;
-					double percentComplete = (double)completedTiles / ((double)PerlinNoise[0].size()*(double)PerlinNoise.size());
-					std::cout << int(percentComplete * 100) << "%" << std::endl;
 				}
 			}
 			shouldRender = true;
@@ -227,14 +207,13 @@ int main() {
 
 	const sf::Vector2f BorderSize(50.f, 50.f);
 
-	sf::Vector2f TileSize = sf::Vector2f(BASE_DISPLAY_WIDTH /MapWidth, BASE_DISPLAY_HEIGHT /MapHeight);
+	sf::Vector2f TileSize = sf::Vector2f(BASE_DISPLAY_WIDTH / MapWidth, BASE_DISPLAY_HEIGHT / MapHeight);
 
 	const unsigned int SCREEN_WIDTH = BASE_DISPLAY_HEIGHT + BorderSize.x;
 	const unsigned int SCREEN_HEIGHT = BASE_DISPLAY_HEIGHT + BorderSize.y;
-
+	
 	// TEST PERLIN NOISE GENERATION
 	std::vector<std::vector<float>> WhiteNoise = GenerateWhiteNoise(MapWidth, MapHeight);
-	//std::vector<std::vector<float>> SmoothNoise = GenerateSmoothNoise(WhiteNoise, 4);
 	std::vector<std::vector<float>> PerlinNoise = GeneratePerlinNoise(WhiteNoise, 5);
 	// TEST PERLIN NOISE GENERATION
 
@@ -252,25 +231,10 @@ int main() {
 	sf::Font ArialFont;
 	ArialFont.loadFromFile("C:/Windows/Fonts/arial.ttf");
 
-	// Convert to object
-	const sf::Vector2f PlayerSize = sf::Vector2f(50, 50);
-	float playerMoveSpeed = 256.f;
-	const sf::Vector2i StartingTile = sf::Vector2i(4,4);
-	sf::RectangleShape Player = sf::RectangleShape(PlayerSize);
-	Player.setFillColor(sf::Color::Black);
-	//Player.setOrigin(Player.getGlobalBounds().width / 2, Player.getGlobalBounds().height / 2);
-	Player.setPosition(StartingTile.x*TileSize.x, StartingTile.y*TileSize.y);
-
-	sf::Text PlayerCoordinates;
-	PlayerCoordinates.setFont(ArialFont);
-	PlayerCoordinates.setPosition(sf::Vector2f(0.f, 0.f));
-
 	sf::RenderTexture rt;
 	rt.create(MapWidth, MapHeight);
 	rt.clear(backgroundColour);
 
-	sf::Vector2i tilePositionLastFrame;
-	bool paused = false;
 	sf::Event ev;
 	sf::Clock clock;
 
