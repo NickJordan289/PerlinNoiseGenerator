@@ -10,31 +10,15 @@
 
 #include "ExtraFuncs.h"
 
-std::vector<std::vector<float>> GenerateEmptyArray(int width, int height)
-{
-	std::vector<std::vector<float>> emptyArray;
-
-	for (int row = 0; row < height; row++)
-	{
-		std::vector<float> tempEmpty;
-		for (int column = 0; column < width; column++)
-		{
-			tempEmpty.push_back(0.f);
-		}
-		emptyArray.push_back(tempEmpty);
-	}
-	return emptyArray;
-}
-
-std::vector<std::vector<float>> GenerateWhiteNoise(int width, int height)
+std::vector<std::vector<float>> GenerateWhiteNoise(unsigned int width, unsigned int height)
 {
 	srand(static_cast<unsigned int>(time(NULL)));
 	std::vector<std::vector<float>> noise;
 
-	for (int row = 0; row < height; row++)
+	for (unsigned int row = 0; row < height; row++)
 	{
 		std::vector<float> tempNoiseEntry;
-		for (int column = 0; column < width; column++)
+		for (unsigned int column = 0; column < width; column++)
 		{
 			tempNoiseEntry.push_back((float)RandomDouble(0.f, 1.f));
 		}
@@ -43,10 +27,10 @@ std::vector<std::vector<float>> GenerateWhiteNoise(int width, int height)
 	return noise;
 }
 
-std::vector<std::vector<float>> GenerateSmoothNoise(std::vector<std::vector<float>> baseNoise, int octave)
+std::vector<std::vector<float>> GenerateSmoothNoise(std::vector<std::vector<float>> baseNoise, unsigned int octave)
 {
-	int width = baseNoise.size();
-	int height = baseNoise[0].size();
+	size_t width = baseNoise.size();
+	size_t height = baseNoise[0].size();
 
 	std::vector<std::vector<float>> smoothNoise;
 
@@ -83,22 +67,22 @@ std::vector<std::vector<float>> GenerateSmoothNoise(std::vector<std::vector<floa
 	return smoothNoise;
 }
 
-std::vector<std::vector<float>> GeneratePerlinNoise(std::vector<std::vector<float>> baseNoise, int octaveCount)
+std::vector<std::vector<float>> GeneratePerlinNoise(std::vector<std::vector<float>> baseNoise, unsigned int octaveCount)
 {
-	int width = baseNoise.size();
-	int height = baseNoise[0].size();
+	size_t width = baseNoise.size();
+	size_t height = baseNoise[0].size();
 
 	std::vector<std::vector<std::vector<float>>> smoothNoise = std::vector<std::vector<std::vector<float>>>(octaveCount);
 
 	float persistance = 0.5f;
 
 	//generate smooth noise
-	for (int i = 0; i < octaveCount; i++)
+	for (unsigned int i = 0; i < octaveCount; i++)
 	{
 		smoothNoise[i] = GenerateSmoothNoise(baseNoise, i);
 	}
 
-	std::vector<std::vector<float>> perlinNoise = GenerateEmptyArray(width, height);
+	std::vector<std::vector<float>> perlinNoise;
 	float amplitude = 1.0f;
 	float totalAmplitude = 0.0f;
 
@@ -110,10 +94,18 @@ std::vector<std::vector<float>> GeneratePerlinNoise(std::vector<std::vector<floa
 
 		for (int row = 0; row < height; row++)
 		{
+			std::vector<float> tempPerlinNoiseEntry;
 			for (int column = 0; column < width; column++)
 			{
-				perlinNoise[row][column] += smoothNoise[octave][row][column] * amplitude;
+				// Check to see if this is the first loop and an entry needs to be created first
+				if (octave == octaveCount - 1)
+					tempPerlinNoiseEntry.push_back(smoothNoise[octave][row][column] * amplitude);
+				else
+					perlinNoise[row][column] += smoothNoise[octave][row][column] * amplitude;
 			}
+			// Check to see if this is the first loop and an entry needs to be created first
+			if (octave == octaveCount - 1)
+				perlinNoise.push_back(tempPerlinNoiseEntry);
 		}
 	}
 
@@ -165,9 +157,9 @@ void processCommands(std::vector<std::vector<float>>& PerlinNoise, bool& shouldR
 					//a > 1 more contrast, a < 1 less contrast
 					//result clamped to range of 0 - 255
 					//divide by 255 to get it back to a percentage before putting back in vector
-					float factor = (259.0 * (con + 255.0)) / (255.0 * (259.0 - con));
+					float  factor = (259.f * (con + 255.f)) / (255.f * (259.f - con));
 					float x = PerlinNoise[row][column] * 255.f;
-					float newValue = TruncateRGB((factor * (x - 128) + 128 + bright));
+					float newValue = TruncateRGB((factor * (x - 128.f) + 128.f + bright));
 
 					PerlinNoise[row][column] = newValue/255;
 				}
@@ -206,11 +198,11 @@ int main() {
 	const unsigned int BASE_DISPLAY_HEIGHT = 512;
 
 	const sf::Vector2f BorderSize(50.f, 50.f);
+	
+	sf::Vector2f TileSize = sf::Vector2f((float)BASE_DISPLAY_WIDTH / (float)MapWidth, (float)BASE_DISPLAY_HEIGHT / (float)MapHeight);
 
-	sf::Vector2f TileSize = sf::Vector2f(BASE_DISPLAY_WIDTH / MapWidth, BASE_DISPLAY_HEIGHT / MapHeight);
-
-	const unsigned int SCREEN_WIDTH = BASE_DISPLAY_HEIGHT + BorderSize.x;
-	const unsigned int SCREEN_HEIGHT = BASE_DISPLAY_HEIGHT + BorderSize.y;
+	const unsigned int SCREEN_WIDTH = BASE_DISPLAY_HEIGHT + (unsigned int)BorderSize.x;
+	const unsigned int SCREEN_HEIGHT = BASE_DISPLAY_HEIGHT + (unsigned int)BorderSize.y;
 	
 	// TEST PERLIN NOISE GENERATION
 	std::vector<std::vector<float>> WhiteNoise = GenerateWhiteNoise(MapWidth, MapHeight);
@@ -270,11 +262,11 @@ int main() {
 				{
 					sf::RectangleShape testTile = sf::RectangleShape(TileSize);
 
-					sf::Color colour = sf::Color(PerlinNoise[row][column] * 255, PerlinNoise[row][column] * 255, PerlinNoise[row][column] * 255);
+					sf::Color colour = FloatToColour(PerlinNoise[row][column]);
 
 					testTile.setFillColor(colour);
 
-					testTile.setPosition(sf::Vector2f(column, row));
+					testTile.setPosition(sf::Vector2f((float)column, (float)row));
 					rt.draw(testTile);
 
 					testTile.setPosition(sf::Vector2f((column*TileSize.x)+BorderSize.x/2, (row*TileSize.y)+BorderSize.y/2));

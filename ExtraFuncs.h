@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <random>
 
+#include <SFML/System/Vector2.hpp>
+#include <SFML/Graphics/Color.hpp>
+
 #if _WIN32 || _WIN64
 	#if _WIN64
 		//#define ENVIRONMENT64 // no need to define because we can just use #if _WIN32
@@ -49,13 +52,6 @@ float dist(sf::Vector2f a, sf::Vector2f b) {
 	return std::sqrt(std::pow(b.x - a.x, 2) + std::pow(b.y - a.y, 2));
 }
 
-//template <typename T>
-//int array_size(T[] arr) {
-//	if (arr[0])
-//		return sizeof(arr) / sizeof(arr[0]);
-//	return -1;
-//}
-
 double RandomDouble(double a, double b) {
 	double random = ((double)rand()) / (double)RAND_MAX;
 	double diff = b - a;
@@ -83,6 +79,10 @@ T constrain(T n, float low, float high) {
 
 float TruncateRGB(float n) {
 	return std::max(std::min(n, 255.f), 0.f);
+}
+
+sf::Color FloatToColour(float value) {
+	return sf::Color(sf::Uint8(value*255.f), sf::Uint8(value*255.f), sf::Uint8(value*255.f));
 }
 
 template <typename T>
