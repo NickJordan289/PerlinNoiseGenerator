@@ -75,7 +75,7 @@ std::vector<std::vector<float>> GeneratePerlinNoise(std::vector<std::vector<floa
 	std::vector<std::vector<std::vector<float>>> smoothNoise = std::vector<std::vector<std::vector<float>>>(octaveCount);
 
 	float persistance = 0.5f;
-
+	
 	//generate smooth noise
 	for (unsigned int i = 0; i < octaveCount; i++)
 	{
@@ -121,33 +121,37 @@ std::vector<std::vector<float>> GeneratePerlinNoise(std::vector<std::vector<floa
 	return perlinNoise;
 }
 
-std::vector<std::vector<sf::Color>> XORColourBlend(std::vector<std::vector<sf::Color>> baseMap, sf::Color secondMap)
+std::vector<std::vector<sf::Color>> ConvertToRGBVector(std::vector<std::vector<float>> baseMap)
 {
+	std::vector<std::vector<sf::Color>> RGBVector;
+
 	for (int row = 0; row < baseMap.size(); row++)
 	{
+		std::vector<sf::Color> newRGBVectorEntry;
 		for (int column = 0; column < baseMap[0].size(); column++)
 		{
-			//baseMap[row][column] = sf::Color(baseMap[row][column], baseMap[row][column], baseMap[row][column]) ^ secondMap;
+			newRGBVectorEntry.push_back(FloatToColour(baseMap[row][column]));
 		}
+		RGBVector.push_back(newRGBVectorEntry);
 	}
+	return RGBVector;
 }
 
-void processCommands(std::vector<std::vector<float>>& PerlinNoise, bool& shouldRender, bool& shouldSave)
+void processCommands(std::vector<std::vector<sf::Color>>& PerlinNoise, bool& shouldRender, bool& shouldSave)
 {
 	while(true)
 	{
 		std::string sIn;
-		std::cout << "Enter command (or 'help'): ";
+		std::cout << "Enter command(s) (or 'help'): ";
 		std::cin >> sIn;
 		std::transform(sIn.begin(), sIn.end(), sIn.begin(), ::tolower);
 		if (sIn == "adjust")
 		{
-			std::string inCon, inBright;
+			float con, bright;
 			std::cout << "Contrast modifier: ";
-			std::cin >> inCon;
+			std::cin >> con;
 			std::cout << "Brightness modifier: ";
-			std::cin >> inBright;
-			float con = std::stof(inCon), bright = std::stof(inBright);
+			std::cin >> bright;
 
 			for (int row = 0; row < PerlinNoise.size(); row++)
 			{
@@ -158,10 +162,10 @@ void processCommands(std::vector<std::vector<float>>& PerlinNoise, bool& shouldR
 					//result clamped to range of 0 - 255
 					//divide by 255 to get it back to a percentage before putting back in vector
 					float  factor = (259.f * (con + 255.f)) / (255.f * (259.f - con));
-					float x = PerlinNoise[row][column] * 255.f;
+					float x = PerlinNoise[row][column].r;
 					float newValue = TruncateRGB((factor * (x - 128.f) + 128.f + bright));
 
-					PerlinNoise[row][column] = newValue/255;
+					PerlinNoise[row][column] = FloatToColour(newValue/255);
 				}
 			}
 			shouldRender = true;
@@ -170,13 +174,22 @@ void processCommands(std::vector<std::vector<float>>& PerlinNoise, bool& shouldR
 		{
 			shouldSave = true;
 		}
-		else if (sIn == "terrain")
+		else if (sIn == "filter")
 		{
-
+			for (int row = 0; row < PerlinNoise.size(); row++)
+			{
+				for (int column = 0; column < PerlinNoise[0].size(); column++)
+				{
+					// Gets the XOR of the generated greyscale colour and a predefined filter colour
+					int XOR_Dec = RGBToDec(PerlinNoise[row][column]) ^ RGBToDec(sf::Color(127, 127, 254));
+					PerlinNoise[row][column] = RGBFromDec(XOR_Dec);
+				}
+			}
+			shouldRender = true;
 		}
 		else if (sIn == "help")
 		{
-			std::cout << "Available commands\n'adjust'\n'save'\n'help'" << std::endl;
+			std::cout << "Available commands\n'adjust'\n'filter'\n'save'\n'help'" << std::endl;
 		}
 	}
 }
@@ -185,14 +198,11 @@ int main() {
 	const unsigned int FPS = 0; //The desired FPS. (The number of updates each second) or 0 for uncapped.
 	float timescale = 1.f;
 
-	std::string inWidth, inHeight;
+	unsigned int MapWidth, MapHeight;
 	std::cout << "Enter Perlin Noise Width: ";
-	std::cin >> inWidth;
+	std::cin >> MapWidth;
 	std::cout << "Enter Perlin Noise Height: ";
-	std::cin >> inHeight;
-
-	int MapWidth = std::stoi(inWidth);
-	int MapHeight = std::stoi(inHeight);
+	std::cin >> MapHeight;
 
 	const unsigned int BASE_DISPLAY_WIDTH = 512;
 	const unsigned int BASE_DISPLAY_HEIGHT = 512;
@@ -204,10 +214,11 @@ int main() {
 	const unsigned int SCREEN_WIDTH = BASE_DISPLAY_HEIGHT + (unsigned int)BorderSize.x;
 	const unsigned int SCREEN_HEIGHT = BASE_DISPLAY_HEIGHT + (unsigned int)BorderSize.y;
 	
-	// TEST PERLIN NOISE GENERATION
+	// GENERATE PERLIN NOISE
 	std::vector<std::vector<float>> WhiteNoise = GenerateWhiteNoise(MapWidth, MapHeight);
 	std::vector<std::vector<float>> PerlinNoise = GeneratePerlinNoise(WhiteNoise, 5);
-	// TEST PERLIN NOISE GENERATION
+	std::vector<std::vector<sf::Color>> RGBPerlinNoise = ConvertToRGBVector(PerlinNoise);
+	// GENERATE PERLIN NOISE
 
 	srand(static_cast<unsigned int>(time(NULL)));
 
@@ -234,7 +245,7 @@ int main() {
 	bool shouldRender = true;
 	bool shouldSave = false;
 
-	std::thread t1(processCommands, std::ref(PerlinNoise), std::ref(shouldRender), std::ref(shouldSave));
+	std::thread t1(processCommands, std::ref(RGBPerlinNoise), std::ref(shouldRender), std::ref(shouldSave));
 	t1.detach();
 
 	while (window.isOpen()) {
@@ -262,7 +273,7 @@ int main() {
 				{
 					sf::RectangleShape testTile = sf::RectangleShape(TileSize);
 
-					sf::Color colour = FloatToColour(PerlinNoise[row][column]);
+					sf::Color colour = RGBPerlinNoise[row][column];
 
 					testTile.setFillColor(colour);
 

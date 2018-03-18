@@ -85,6 +85,20 @@ sf::Color FloatToColour(float value) {
 	return sf::Color(sf::Uint8(value*255.f), sf::Uint8(value*255.f), sf::Uint8(value*255.f));
 }
 
+int RGBToDec(sf::Color c)
+{
+	return (c.r << 16) | (c.g << 8) | c.b;
+}
+
+sf::Color RGBFromDec(int d)
+{
+	sf::Color temp;
+	temp.r = (d >> 16) & 255;
+	temp.g = (d >> 8) & 255;
+	temp.b = d & 255;
+	return temp;
+}
+
 template <typename T>
 void delete_pointed_to(T* const ptr) {
 	delete ptr;
